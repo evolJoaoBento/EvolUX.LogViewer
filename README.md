@@ -2,7 +2,8 @@
 
 A modern, feature-rich log viewer application designed for software developers and system administrators to efficiently analyze and debug application logs.
 
-![EvolUX Log Viewer Screenshot](https://raw.githubusercontent.com/yourusername/EvolUX.LogViewer/main/screenshots/main-screen.png)
+![image](https://github.com/user-attachments/assets/30bf6d35-2a24-4811-b531-d4218934c817)
+
 
 ## Features
 
