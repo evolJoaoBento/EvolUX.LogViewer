@@ -21,6 +21,7 @@ namespace EvolUX.LogViewer
             // Register services
             services.AddSingleton<ILogParserService, LogParserService>();
             services.AddSingleton<ILogSearchService, LogSearchService>();
+            services.AddSingleton<ITimeZoneService, TimeZoneService>();
 
             // Register view models
             services.AddTransient<MainViewModel>();
@@ -39,5 +40,8 @@ namespace EvolUX.LogViewer
 
             mainWindow.Show();
         }
+
+        // Add a service provider accessor
+        public static ServiceProvider Services => ((App)Current).serviceProvider;
     }
 }

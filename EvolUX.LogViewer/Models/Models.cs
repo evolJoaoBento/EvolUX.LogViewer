@@ -1,6 +1,9 @@
-﻿namespace EvolUX.LogViewer.Models
+﻿using System.ComponentModel;
+using System.Runtime.CompilerServices;
+
+namespace EvolUX.LogViewer.Models
 {
-    public class LogEntry
+    public class LogEntry : INotifyPropertyChanged
     {
         public DateTime Timestamp { get; set; }
         public string Level { get; set; } = string.Empty;
@@ -19,15 +22,35 @@
         public bool HasExceptionData => ExceptionData != null && ExceptionData.Count > 0;
         public bool HasInnerExceptions => InnerExceptions != null && InnerExceptions.Count > 0;
         public bool HasStackTrace => !string.IsNullOrEmpty(StackTrace);
+
+        // Method to force UI refresh
+        public void RefreshProperties()
+        {
+            // Notify UI that all "Has*" properties might have changed
+            OnPropertyChanged(nameof(HasVariables));
+            OnPropertyChanged(nameof(HasException));
+            OnPropertyChanged(nameof(HasExceptionData));
+            OnPropertyChanged(nameof(HasInnerExceptions));
+            OnPropertyChanged(nameof(HasStackTrace));
+        }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
     }
 
+    // Note: ExceptionInfo is kept as a separate class without implementing INotifyPropertyChanged
+    // since it's only used within LogEntry and doesn't need to directly notify the UI
     public class ExceptionInfo
     {
         public string Type { get; set; } = string.Empty;
         public string Message { get; set; } = string.Empty;
         public string? StackTrace { get; set; }
 
-        // UI Helper Property
+        // UI Helper Property - this is just a computed property, not a notifiable one
         public bool HasStackTrace => !string.IsNullOrEmpty(StackTrace);
     }
 

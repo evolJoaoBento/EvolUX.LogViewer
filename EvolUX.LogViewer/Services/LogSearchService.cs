@@ -19,6 +19,7 @@ namespace EvolUX.LogViewer.Services
             IEnumerable<LogEntry> logs,
             string traceId);
     }
+
     public class LogSearchService : ILogSearchService
     {
         public IEnumerable<LogEntry> FilterLogsByDateAndLevel(

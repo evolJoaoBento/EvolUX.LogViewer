@@ -12,6 +12,7 @@ namespace EvolUX.LogViewer.Services
         void ExportLogsToText(IEnumerable<LogEntry> logs, string filePath);
         void ExportLogsToJson(IEnumerable<LogEntry> logs, string filePath);
     }
+
     public class LogParserService : ILogParserService
     {
         public IEnumerable<LogEntry> ParseLogsFromFolder(string folderPath)

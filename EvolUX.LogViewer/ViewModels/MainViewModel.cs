@@ -1,7 +1,10 @@
-﻿using System.Collections.ObjectModel;
+﻿using System;
+using System.Collections.ObjectModel;
+using System.Linq;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
+using System.Collections.Generic;
 using EvolUX.LogViewer.Models;
 using EvolUX.LogViewer.Services;
 using Microsoft.Win32;
@@ -12,9 +15,31 @@ namespace EvolUX.LogViewer.ViewModels
     {
         private readonly ILogParserService _logParserService;
         private readonly ILogSearchService _logSearchService;
+        private readonly ITimeZoneService _timeZoneService;
 
-        public ObservableCollection<LogEntry> LogEntries { get; } = new ObservableCollection<LogEntry>();
-        public ObservableCollection<string> LogLevels { get; } = new ObservableCollection<string>();
+        private readonly ObservableCollection<LogEntry> _logEntries = new ObservableCollection<LogEntry>();
+        public ObservableCollection<LogEntry> LogEntries => _logEntries;
+
+        private readonly ObservableCollection<string> _logLevels = new ObservableCollection<string>();
+        public ObservableCollection<string> LogLevels => _logLevels;
+
+        // Time zone properties
+        public ObservableCollection<TimeZoneInfo> AvailableTimeZones => _timeZoneService.AvailableTimeZones;
+
+        public TimeZoneInfo SelectedTimeZone
+        {
+            get => _timeZoneService.SelectedTimeZone;
+            set
+            {
+                if (_timeZoneService.SelectedTimeZone != value)
+                {
+                    _timeZoneService.SelectedTimeZone = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public string TimeZoneDisplayName => _timeZoneService.GetTimeZoneDisplayName();
 
         private string _selectedLogLevel = "All";
         public string SelectedLogLevel
@@ -91,6 +116,22 @@ namespace EvolUX.LogViewer.ViewModels
                     {
                         GenerateTreeNodes(_selectedLogEntry);
                     }
+                    else
+                    {
+                        // Clear tree nodes when no log entry is selected
+                        VariablesTreeNodes.Clear();
+                        ExceptionDataTreeNodes.Clear();
+                    }
+
+                    // Notify that HasException and other properties might have changed
+                    if (_selectedLogEntry != null)
+                    {
+                        OnPropertyChanged(nameof(SelectedLogEntry.HasException));
+                        OnPropertyChanged(nameof(SelectedLogEntry.HasVariables));
+                        OnPropertyChanged(nameof(SelectedLogEntry.HasStackTrace));
+                        OnPropertyChanged(nameof(SelectedLogEntry.HasExceptionData));
+                        OnPropertyChanged(nameof(SelectedLogEntry.HasInnerExceptions));
+                    }
                 }
             }
         }
@@ -110,18 +151,34 @@ namespace EvolUX.LogViewer.ViewModels
         }
 
         // New properties for tree nodes 
-        public ObservableCollection<Models.TreeNode> VariablesTreeNodes { get; } = new ObservableCollection<Models.TreeNode>();
-        public ObservableCollection<Models.TreeNode> ExceptionDataTreeNodes { get; } = new ObservableCollection<Models.TreeNode>();
+        private readonly ObservableCollection<Models.TreeNode> _variablesTreeNodes = new ObservableCollection<Models.TreeNode>();
+        public ObservableCollection<Models.TreeNode> VariablesTreeNodes => _variablesTreeNodes;
+
+        private readonly ObservableCollection<Models.TreeNode> _exceptionDataTreeNodes = new ObservableCollection<Models.TreeNode>();
+        public ObservableCollection<Models.TreeNode> ExceptionDataTreeNodes => _exceptionDataTreeNodes;
 
         // Commands
         public ICommand OpenLogFolderCommand { get; }
         public ICommand SearchCommand { get; }
         public ICommand ExportLogsCommand { get; }
 
-        public MainViewModel(ILogParserService logParserService, ILogSearchService logSearchService)
+        public MainViewModel(
+            ILogParserService logParserService,
+            ILogSearchService logSearchService,
+            ITimeZoneService timeZoneService)
         {
-            _logParserService = logParserService;
-            _logSearchService = logSearchService;
+            _logParserService = logParserService ?? throw new ArgumentNullException(nameof(logParserService));
+            _logSearchService = logSearchService ?? throw new ArgumentNullException(nameof(logSearchService));
+            _timeZoneService = timeZoneService ?? throw new ArgumentNullException(nameof(timeZoneService));
+
+            // Subscribe to time zone changes to update the UI
+            _timeZoneService.TimeZoneChanged += (s, e) =>
+            {
+                OnPropertyChanged(nameof(SelectedTimeZone));
+                OnPropertyChanged(nameof(TimeZoneDisplayName));
+                // Refresh any displayed timestamps
+                RefreshLogDisplay();
+            };
 
             // Initialize commands
             OpenLogFolderCommand = new RelayCommand(OpenLogFolder);
@@ -129,11 +186,55 @@ namespace EvolUX.LogViewer.ViewModels
             ExportLogsCommand = new RelayCommand(ExportLogs, CanExportLogs);
 
             // Initialize log levels
+            LogLevels.Clear(); // Make sure we start with a clean list
             LogLevels.Add("All");
             LogLevels.Add("DEBUG");
             LogLevels.Add("INFO");
             LogLevels.Add("WARNING");
             LogLevels.Add("ERROR");
+
+            // Set default values
+            _selectedLogLevel = "All";
+            _searchText = string.Empty;
+            _fromDate = DateTime.Today.AddDays(-7);
+            _toDate = DateTime.Today.AddDays(1);
+        }
+
+        // Helper method to convert timestamps for display
+        public DateTime ConvertToDisplayTime(DateTime utcTime)
+        {
+            return _timeZoneService.ConvertFromUtc(utcTime);
+        }
+
+        private void RefreshLogDisplay()
+        {
+            // This will trigger UI refresh of all displayed logs
+            var selectedLog = SelectedLogEntry;
+
+            // Force refresh of all items in the collection
+            var tempList = _logEntries.ToList();
+            _logEntries.Clear();
+            foreach (var log in tempList)
+            {
+                _logEntries.Add(log);
+            }
+
+            // Restore selection
+            if (selectedLog != null)
+            {
+                SelectedLogEntry = tempList.FirstOrDefault(l => l.TraceId == selectedLog.TraceId &&
+                                                              l.Timestamp == selectedLog.Timestamp);
+
+                // Make sure properties are refreshed
+                if (SelectedLogEntry != null)
+                {
+                    OnPropertyChanged(nameof(SelectedLogEntry.HasException));
+                    OnPropertyChanged(nameof(SelectedLogEntry.HasVariables));
+                    OnPropertyChanged(nameof(SelectedLogEntry.HasStackTrace));
+                    OnPropertyChanged(nameof(SelectedLogEntry.HasExceptionData));
+                    OnPropertyChanged(nameof(SelectedLogEntry.HasInnerExceptions));
+                }
+            }
         }
 
         private void OpenLogFolder()
@@ -161,13 +262,13 @@ namespace EvolUX.LogViewer.ViewModels
 
                 var logs = await Task.Run(() => _logParserService.ParseLogsFromFolder(folderPath));
 
-                LogEntries.Clear();
+                _logEntries.Clear();
                 foreach (var log in logs)
                 {
-                    LogEntries.Add(log);
+                    _logEntries.Add(log);
                 }
 
-                StatusMessage = $"Loaded {LogEntries.Count} log entries from {folderPath}";
+                StatusMessage = $"Loaded {_logEntries.Count} log entries from {folderPath}";
             }
             catch (Exception ex)
             {
@@ -177,33 +278,33 @@ namespace EvolUX.LogViewer.ViewModels
 
         private void FilterLogs()
         {
-            if (LogEntries.Count == 0) return;
+            if (_logEntries.Count == 0) return;
 
             var filteredLogs = _logSearchService.FilterLogsByDateAndLevel(
-                LogEntries, FromDate, ToDate, SelectedLogLevel);
+                _logEntries, FromDate, ToDate, SelectedLogLevel);
 
-            LogEntries.Clear();
+            _logEntries.Clear();
             foreach (var log in filteredLogs)
             {
-                LogEntries.Add(log);
+                _logEntries.Add(log);
             }
 
-            StatusMessage = $"Filtered to {LogEntries.Count} log entries";
+            StatusMessage = $"Filtered to {_logEntries.Count} log entries";
         }
 
         private void SearchLogs()
         {
             if (string.IsNullOrWhiteSpace(SearchText)) return;
 
-            var searchResults = _logSearchService.SearchLogs(LogEntries, SearchText);
+            var searchResults = _logSearchService.SearchLogs(_logEntries, SearchText);
 
-            LogEntries.Clear();
+            _logEntries.Clear();
             foreach (var log in searchResults)
             {
-                LogEntries.Add(log);
+                _logEntries.Add(log);
             }
 
-            StatusMessage = $"Found {LogEntries.Count} matching log entries";
+            StatusMessage = $"Found {_logEntries.Count} matching log entries";
         }
 
         private void ExportLogs()
@@ -223,14 +324,14 @@ namespace EvolUX.LogViewer.ViewModels
 
                     if (dialog.FileName.EndsWith(".json"))
                     {
-                        _logParserService.ExportLogsToJson(LogEntries, dialog.FileName);
+                        _logParserService.ExportLogsToJson(_logEntries, dialog.FileName);
                     }
                     else
                     {
-                        _logParserService.ExportLogsToText(LogEntries, dialog.FileName);
+                        _logParserService.ExportLogsToText(_logEntries, dialog.FileName);
                     }
 
-                    StatusMessage = $"Exported {LogEntries.Count} log entries to {dialog.FileName}";
+                    StatusMessage = $"Exported {_logEntries.Count} log entries to {dialog.FileName}";
                 }
                 catch (Exception ex)
                 {
@@ -244,9 +345,11 @@ namespace EvolUX.LogViewer.ViewModels
             return LogEntries.Count > 0;
         }
 
-        // New helper method for .NET 8 
+        // Modify the GenerateTreeNodes method to refresh all bindings
         private void GenerateTreeNodes(LogEntry logEntry)
         {
+            if (logEntry == null) return;
+
             VariablesTreeNodes.Clear();
             ExceptionDataTreeNodes.Clear();
 
@@ -269,6 +372,11 @@ namespace EvolUX.LogViewer.ViewModels
                     ExceptionDataTreeNodes.Add(node);
                 }
             }
+
+            // Only call RefreshProperties on the LogEntry object, not on any ExceptionInfo objects
+            // Make sure the UI is updated by notifying about the changes
+            OnPropertyChanged(nameof(VariablesTreeNodes));
+            OnPropertyChanged(nameof(ExceptionDataTreeNodes));
         }
 
         private Models.TreeNode CreateTreeNode(string key, object? value)
