@@ -147,17 +147,25 @@
 
                         <!-- Variables -->
                         <Expander x:Name="variablesExpander"
-                                  Header="Variables" 
-                                  IsExpanded="True" 
+                                  Header="Variables (double-click to view details)"
+                                  IsExpanded="True"
                                   Visibility="Visible"
                                   Margin="0,5">
-                            <TreeView ItemsSource="{Binding VariablesTreeNodes}" Margin="0,5">
+                            <TreeView x:Name="variablesTreeView"
+                                      ItemsSource="{Binding VariablesTreeNodes}"
+                                      Margin="0,5"
+                                      MouseDoubleClick="VariablesTreeView_MouseDoubleClick">
+                                <TreeView.ItemContainerStyle>
+                                    <Style TargetType="TreeViewItem">
+                                        <Setter Property="Cursor" Value="Hand"/>
+                                    </Style>
+                                </TreeView.ItemContainerStyle>
                                 <TreeView.ItemTemplate>
                                     <HierarchicalDataTemplate ItemsSource="{Binding Children}">
                                         <StackPanel Orientation="Horizontal">
                                             <TextBlock Text="{Binding Key}" FontWeight="SemiBold"/>
                                             <TextBlock Text=": " Visibility="{Binding HasValue, Converter={StaticResource BoolToVisibilityConverter}}"/>
-                                            <TextBlock Text="{Binding Value}" Visibility="{Binding HasValue, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                            <TextBlock Text="{Binding Value}" Visibility="{Binding HasValue, Converter={StaticResource BoolToVisibilityConverter}}" MaxWidth="300" TextTrimming="CharacterEllipsis"/>
                                         </StackPanel>
                                     </HierarchicalDataTemplate>
                                 </TreeView.ItemTemplate>
@@ -192,17 +200,25 @@
 
                                 <!-- Exception Data -->
                                 <Expander x:Name="exceptionDataExpander"
-                                        Header="Exception Data" 
-                                        IsExpanded="True" 
+                                        Header="Exception Data (double-click to view details)"
+                                        IsExpanded="True"
                                         Visibility="Visible"
                                         Margin="0,5">
-                                    <TreeView ItemsSource="{Binding ExceptionDataTreeNodes}" Margin="0,5">
+                                    <TreeView x:Name="exceptionDataTreeView"
+                                              ItemsSource="{Binding ExceptionDataTreeNodes}"
+                                              Margin="0,5"
+                                              MouseDoubleClick="VariablesTreeView_MouseDoubleClick">
+                                        <TreeView.ItemContainerStyle>
+                                            <Style TargetType="TreeViewItem">
+                                                <Setter Property="Cursor" Value="Hand"/>
+                                            </Style>
+                                        </TreeView.ItemContainerStyle>
                                         <TreeView.ItemTemplate>
                                             <HierarchicalDataTemplate ItemsSource="{Binding Children}">
                                                 <StackPanel Orientation="Horizontal">
                                                     <TextBlock Text="{Binding Key}" FontWeight="SemiBold"/>
                                                     <TextBlock Text=": " Visibility="{Binding HasValue, Converter={StaticResource BoolToVisibilityConverter}}"/>
-                                                    <TextBlock Text="{Binding Value}" Visibility="{Binding HasValue, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                                    <TextBlock Text="{Binding Value}" Visibility="{Binding HasValue, Converter={StaticResource BoolToVisibilityConverter}}" MaxWidth="300" TextTrimming="CharacterEllipsis"/>
                                                 </StackPanel>
                                             </HierarchicalDataTemplate>
                                         </TreeView.ItemTemplate>

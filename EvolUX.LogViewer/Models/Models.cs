@@ -60,5 +60,8 @@ namespace EvolUX.LogViewer.Models
         public string? Value { get; set; }
         public bool HasValue => !string.IsNullOrEmpty(Value);
         public List<TreeNode> Children { get; set; } = new List<TreeNode>();
+
+        // Store the original raw value for popup display
+        public object? RawValue { get; set; }
     }
 }

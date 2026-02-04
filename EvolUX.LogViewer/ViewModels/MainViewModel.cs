@@ -383,19 +383,19 @@ namespace EvolUX.LogViewer.ViewModels
         {
             if (value == null)
             {
-                return new Models.TreeNode { Key = key, Value = "null" };
+                return new Models.TreeNode { Key = key, Value = "null", RawValue = null };
             }
 
             // For simple types, just return the value
             if (value is string or int or double or bool or DateTime)
             {
-                return new Models.TreeNode { Key = key, Value = value.ToString() };
+                return new Models.TreeNode { Key = key, Value = value.ToString(), RawValue = value };
             }
 
             // For dictionaries, create child nodes
             if (value is Dictionary<string, object> dict)
             {
-                var node = new Models.TreeNode { Key = key };
+                var node = new Models.TreeNode { Key = key, RawValue = value };
                 foreach (var item in dict)
                 {
                     node.Children.Add(CreateTreeNode(item.Key, item.Value));
@@ -406,7 +406,7 @@ namespace EvolUX.LogViewer.ViewModels
             // For lists or arrays, create child nodes
             if (value is System.Collections.IEnumerable items && !(value is string))
             {
-                var node = new Models.TreeNode { Key = key };
+                var node = new Models.TreeNode { Key = key, RawValue = value };
                 int index = 0;
                 foreach (var item in items)
                 {
@@ -420,7 +420,7 @@ namespace EvolUX.LogViewer.ViewModels
             var type = value.GetType();
             if (type.IsClass && type != typeof(string))
             {
-                var node = new Models.TreeNode { Key = key };
+                var node = new Models.TreeNode { Key = key, RawValue = value };
                 var properties = type.GetProperties();
                 if (properties.Length > 0)
                 {
@@ -441,7 +441,7 @@ namespace EvolUX.LogViewer.ViewModels
             }
 
             // Fallback
-            return new Models.TreeNode { Key = key, Value = value.ToString() };
+            return new Models.TreeNode { Key = key, Value = value.ToString(), RawValue = value };
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;

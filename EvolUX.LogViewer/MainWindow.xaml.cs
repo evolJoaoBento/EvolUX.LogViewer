@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.ComponentModel;
 
 namespace EvolUX.LogViewer
@@ -208,6 +209,20 @@ namespace EvolUX.LogViewer
             else
             {
                 System.Windows.MessageBox.Show("No log entry selected", "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+
+        private void VariablesTreeView_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is System.Windows.Controls.TreeView treeView && treeView.SelectedItem is Models.TreeNode selectedNode)
+            {
+                var detailsWindow = new VariableDetailsWindow
+                {
+                    Owner = this
+                };
+                detailsWindow.DisplayVariable(selectedNode);
+                detailsWindow.ShowDialog();
+                e.Handled = true;
             }
         }
     }
